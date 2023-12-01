@@ -87,7 +87,7 @@ def start(message):
 
 Для начала зарегистрируйся:
 /reg ЛюбойНикнейм
-Установка адресата - :НикАдресата
+Установка адресата - { telebot.formatting.hcode(":НикАдресата") }
 
 Исходный код: https://gitea.gulyaipole.fun/justuser/just_anonchat
 Связь с админом: { telebot.formatting.hcode(":justuser") }
@@ -182,13 +182,14 @@ def me(message):
 		catch_error(message)
 
 
-@bot.message_handler(func=lambda message: True)
+#@bot.message_handler(func=lambda message: True)
+@bot.message_handler(func=lambda message: True, content_types=['photo','text'])
 def catch_all_messages(message):
 	try:
 		global db
 		read_db()
 		nick = db[str(message.chat.id)]
-		if message.text[:1].lower() == ":":
+		if message.content_type == "text" and message.text[:1].lower() == ":":
 			channel = message.text[1:]
 			if channel in db:
 				db[nick]["channel"] = channel
@@ -201,18 +202,31 @@ def catch_all_messages(message):
 
 			if message.chat.id not in db[channel]["blocks"]:
 				try:
-					bot.send_message(db[channel]["id"], f"{telebot.formatting.hcode(nick)}\n" + message.text, parse_mode="HTML")
+					# Check if image
+					if "photo" in message.json:
+						img_id = message.json['photo'][0]['file_id']
+						# Catch caption
+						if "caption" in message.json:
+							caption = "\n" + message.json['caption']
+						else:
+							caption = ""
+
+						bot.send_photo(db[channel]["id"], img_id, f"{telebot.formatting.hcode(':'+nick)}" + caption, parse_mode="HTML")
+
+					else:
+						bot.send_message(db[channel]["id"], f"{telebot.formatting.hcode(':'+nick)}\n" + message.text, parse_mode="HTML")
+
 				except:
 					bot.reply_to(message, "Сообщение не было доставлено.\nВероятно пользователь заблокировал бота.")
 			else:
 				bot.reply_to(message, "Увы, но вас заблокировал данный пользователь.")
 		else:
-			bot.reply_to(message, f"У вас не указан чат.\nЧтобы подключится к чату напишите: {telebot.formatting.hcode('c:Никнейм')} ", parse_mode="HTML")
+			bot.reply_to(message, f"У вас не указан чат.\nЧтобы подключится к чату напишите: {telebot.formatting.hcode(':Никнейм')} ", parse_mode="HTML")
 	except:
 		catch_error(message)
 
 #### POLLING ####
-'''
+#'''
 while True:
 	try:
 		bot.polling()
@@ -220,5 +234,5 @@ while True:
 		exit()
 	except:
 		pass
-'''
-bot.polling()
+#'''
+#bot.polling()
