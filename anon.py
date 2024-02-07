@@ -16,27 +16,27 @@ if not os.path.exists('db.json'):
 	exit()
 
 # db = {
-# "Anon": {"id": 2045634, channel: "AnotherUser", blocks: [5375652, 436432]},
+# "Anon": {"id": 2045634, channel: "AnotherUser", blocks: [5375652, 436432], avatar: "♿️", pkey: "fuD2d", keys: {AnotherUser: "dDH73s"}},
 # 2045634: "Anon"
 #}
-# Can't hash Username :(
-# (It broke all)
+# Невозможно хешировать айди - это всё ломает
+#
+# Первая строка - информация о пользователе (айди, канал, блокнутые пользователи)
+# Вторая строчка - для отправки сообщения и блокировки
+# keys - ключи , pkey - личный ключ
 
 ############WORK WITH DBs##########
 
-def read_db():
-        global db
-        with open('db.json', 'r') as openfile:
-                db = json.load(openfile)
-def write_db():
-        global db
-        js = json.dumps(db, indent=2)
-        with open("db.json", "w") as outfile:
-                outfile.write(js)
+from db import *
+db = read_db()
+
+###### WORK WITH HASHES ##########
+
+from hash import hash
+from random import randint
 
 ################ TOKEN INIT ######
 
-read_db()
 bot = telebot.TeleBot(db['token'])
 
 ##################CATCH ERRORS####
@@ -68,8 +68,7 @@ def catch_error(message, err_type = None):
 
 def is_auth(message):
 	try:
-		global db
-		read_db()
+		db = read_db()
 		if str(message.chat.id) in db:
 			return True
 		else:
@@ -97,18 +96,18 @@ def start(message):
 @bot.message_handler(commands=['reg'])
 def reg(message):
 	try:
-		global db
-		read_db()
+		db = read_db()
 		if len(message.text.split()) == 2:
-			if message.text.split()[1] in db:
+			nick = message.text.split()[1]
+			if nick in db:
 				bot.reply_to(message, "Данный пользователь уже зарегистрирован.")
 			elif str(message.chat.id) in db:
 				bot.reply_to(message, "Вы уже зарегистрированы.")
 			else:
-				db[message.text.split()[1]] = {"id": message.chat.id, "channel": None, "blocks": []}
-				db[message.chat.id] = message.text.split()[1]
+				db[nick] = {"id": message.chat.id, "channel": None, "blocks": [], "avatar": "♿️", "pkey": hash(randint(74287, 5747962)), "keys": {}}
+				db[message.chat.id] = nick
 
-				write_db()
+				write_db(db)
 				bot.reply_to(message, "Вы зарегистрировались!\nПриятного использования.")
 		else:
 			bot.reply_to(message, "Вы ввели не 2 аргумента, нужно: /reg ЛюбойНикнейм")
@@ -119,14 +118,18 @@ def reg(message):
 def b(message):
 	try:
 		if is_auth(message):
-			global db; read_db()
+			db = read_db()
 			nick = db[str(message.chat.id)]
 			block = message.text.split()[1]
+
+			# Block by ":user"
+			if block[0] == ":":
+				block = block[1:]
 
 			if block in db:
 				if db[block]["id"] not in db[nick]["blocks"]:
 					db[nick]["blocks"].append(db[block]["id"])
-					write_db()
+					write_db(db)
 				bot.reply_to(message, f"Пользователь {telebot.formatting.hcode(block)} был заблокирован.",parse_mode="HTML")
 			else:
 				bot.reply_to(message, "Данного пользователя не существует.")
@@ -137,13 +140,17 @@ def b(message):
 def u(message):
 	try:
 		if is_auth(message):
-			global db; read_db()
+			db = read_db()
 			nick = db[str(message.chat.id)]
 			block = message.text.split()[1]
 
+			# Unblock by ":user"
+			if block[0] == ":":
+				block = block[1:]
+
 			if db[block]["id"] in db[nick]["blocks"]:
 				db[nick]["blocks"].remove(db[block]["id"])
-				write_db()
+				write_db(db)
 			bot.reply_to(message, f"Была снята блокировка с пользователя {telebot.formatting.hcode(block)}",parse_mode="HTML")
 	except:
 		catch_error(message)
@@ -152,49 +159,118 @@ def u(message):
 def nick(message):
 	try:
 		if is_auth(message):
-			global db; read_db()
-			new_nick=message.text.split()[1]
-			old_nick=db[str(message.chat.id)]
+			db = read_db()
+			new_nick = message.text.split()[1]
+			old_nick = db[str(message.chat.id)]
 
 			if new_nick not in db:
 				db[new_nick] = db[old_nick]
+				db[new_nick]["avatar"] = "♿️"
 				db[str(message.chat.id)] = new_nick
 				del db[old_nick]
-				write_db()
+				write_db(db)
 				bot.reply_to(message,f"Вы успешно сменили ник с {telebot.formatting.hcode(old_nick)} на {telebot.formatting.hcode(new_nick)}",parse_mode="HTML")
+				bot.reply_to(message, "Ваша аватарка сброшена до стандартной: ♿️")
 			else:
 				bot.reply_to(message,"Данный ник уже занят")
 	except:
 		catch_error(message)
 
-@bot.message_handler(commands=['me'])
-def me(message):
+@bot.message_handler(commands=['av'])
+def av(message):
 	try:
-		read_db()
-		nick = db[str(message.chat.id)]
-		channel = db[nick]["channel"]
-		if not channel:
-			channel = "Не задан."
-
-		bot.reply_to(message, f"""Ваш ник: {telebot.formatting.hcode(nick)}
-Заданный канал: {telebot.formatting.hcode(channel)}""",parse_mode="HTML")
+		if is_auth(message):
+			db = read_db()
+			if not len(message.text.split()) > 1:
+				bot.reply_to(message,"Укажите аватарку")
+				return 0
+			new_avatar = message.text.split()[1]
+			if len(new_avatar) > 10:
+				bot.reply_to(message,"Слишком большое количество символов для аватарки")
+			else:
+				nick = db[str(message.chat.id)]
+				db[nick]["avatar"] = new_avatar
+				write_db(db)
+				bot.reply_to(message,"Новая аватарка успешно установлена")
 	except:
 		catch_error(message)
 
 
-#@bot.message_handler(func=lambda message: True)
+############# WORK WITH KEY ########
+
+@bot.message_handler(commands=['key'])
+def key(message):
+	if len(message.text.split()) == 2:
+		nick = message.text.split()[1]
+		if nick[0] == ':':
+			nick = nick[1:]
+		key = db[nick]["pkey"]
+		bot.reply_to(message,f"Ключ пользователя: {telebot.formatting.hcode(key)}", parse_mode="HTML")
+	else:
+		bot.reply_to(message,"/key ник")
+
+@bot.message_handler(commands=['ver'])
+def ver(message):
+	if len(message.text.split()) == 3:
+		nick = message.text.split()[1]
+		if nick[0] == ':':
+			nick = nick[1:]
+		key = message.text.split()[2]
+		if not nick in db:
+			bot.reply_to(message,"Не существует такого пользователя")
+			return 0
+
+		if key == db[nick]["pkey"]:
+			bot.reply_to(message,"✅ Ключи совпадают")
+		else:
+			bot.reply_to(message,"❌ Ключи не совпадают")
+	else:
+		bot.reply_to(message,"/ver ник ключ")
+
+####################################
+
+
+
+@bot.message_handler(commands=['me'])
+def me(message):
+	try:
+		db = read_db()
+		nick = db[str(message.chat.id)]
+		channel = db[nick]["channel"]
+		avatar = db[nick]["avatar"]
+		pkey = db[nick]["pkey"]
+		if not channel:
+			channel = "Не задан."
+
+		bot.reply_to(message, f"""Заданный канал: {telebot.formatting.hcode(channel)}
+
+Ваш ник: {telebot.formatting.hcode(nick)}
+Ваша аватарка: {telebot.formatting.hcode(avatar)}
+Ваш публичный ключ: {telebot.formatting.hcode(pkey)}""",parse_mode="HTML")
+	except:
+		catch_error(message)
+
+
+
 @bot.message_handler(func=lambda message: True, content_types=['photo','text'])
 def catch_all_messages(message):
 	try:
-		global db
-		read_db()
+		db = read_db()
 		nick = db[str(message.chat.id)]
+		avatar = ' ' + db[nick]["avatar"]
 		if message.content_type == "text" and message.text[:1].lower() == ":":
 			channel = message.text[1:]
 			if channel in db:
 				db[nick]["channel"] = channel
+
+				# Обрабатываем публичные ключи
+				if channel in db[nick]["keys"]:
+					pass
+				else:
+					db[nick]["keys"][channel] = db[channel]["pkey"]
+
 				bot.reply_to(message, "Установлен адресат: " + telebot.formatting.hcode(channel), parse_mode="HTML")
-				write_db()
+				write_db(db)
 			else:
 				bot.reply_to(message, "Не существует данного пользователя.")
 		elif db[nick]["channel"] != None:
@@ -211,10 +287,10 @@ def catch_all_messages(message):
 						else:
 							caption = ""
 
-						bot.send_photo(db[channel]["id"], img_id, f"{telebot.formatting.hcode(':'+nick)}" + caption, parse_mode="HTML")
+						bot.send_photo(db[channel]["id"], img_id, f"{telebot.formatting.hcode(':'+nick)} + avatar" + caption, parse_mode="HTML")
 
 					else:
-						bot.send_message(db[channel]["id"], f"{telebot.formatting.hcode(':'+nick)}\n" + message.text, parse_mode="HTML")
+						bot.send_message(db[channel]["id"], f"{telebot.formatting.hcode(':'+nick) + avatar}\n" + message.text, parse_mode="HTML")
 
 				except:
 					bot.reply_to(message, "Сообщение не было доставлено.\nВероятно пользователь заблокировал бота.")
@@ -226,13 +302,16 @@ def catch_all_messages(message):
 		catch_error(message)
 
 #### POLLING ####
-#'''
-while True:
-	try:
-		bot.polling()
-	except KeyboardInterrupt:
-		exit()
-	except:
-		pass
-#'''
-#bot.polling()
+mode = 0
+# Normal - 0, debug - 1
+
+if mode == 0:
+	while True:
+		try:
+			bot.polling()
+		except KeyboardInterrupt:
+			exit()
+		except:
+			pass
+elif mode == 1:
+	bot.polling()
