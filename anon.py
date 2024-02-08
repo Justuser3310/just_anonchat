@@ -170,7 +170,8 @@ def nick(message):
 				del db[old_nick]
 				write_db(db)
 				bot.reply_to(message,f"Вы успешно сменили ник с {telebot.formatting.hcode(old_nick)} на {telebot.formatting.hcode(new_nick)}",parse_mode="HTML")
-				bot.reply_to(message, "Ваша аватарка сброшена до стандартной: ♿️")
+				bot.reply_to(message, """Ваша аватарка сброшена до стандартной: ♿️
+Также вы можете сбросить публичный ключ: /key_res""")
 			else:
 				bot.reply_to(message,"Данный ник уже занят")
 	except:
@@ -200,32 +201,92 @@ def av(message):
 
 @bot.message_handler(commands=['key'])
 def key(message):
-	if len(message.text.split()) == 2:
-		nick = message.text.split()[1]
-		if nick[0] == ':':
-			nick = nick[1:]
-		key = db[nick]["pkey"]
-		bot.reply_to(message,f"Ключ пользователя: {telebot.formatting.hcode(key)}", parse_mode="HTML")
-	else:
-		bot.reply_to(message,"/key ник")
+	try:
+		if len(message.text.split()) == 2:
+			db = read_db()
+			nick = message.text.split()[1]
+			if nick[0] == ':':
+				nick = nick[1:]
+			key = db[nick]["pkey"]
+			bot.reply_to(message,f"Ключ пользователя: {telebot.formatting.hcode(key)}", parse_mode="HTML")
+		else:
+			bot.reply_to(message,"/key ник")
+	except:
+		catch_error(message)
 
 @bot.message_handler(commands=['ver'])
 def ver(message):
-	if len(message.text.split()) == 3:
-		nick = message.text.split()[1]
-		if nick[0] == ':':
-			nick = nick[1:]
-		key = message.text.split()[2]
-		if not nick in db:
-			bot.reply_to(message,"Не существует такого пользователя")
-			return 0
+	try:
+		if len(message.text.split()) == 3:
+			db = read_db()
+			nick = message.text.split()[1]
+			if nick[0] == ':':
+				nick = nick[1:]
+			key = message.text.split()[2]
+			if not nick in db:
+				bot.reply_to(message,"Не существует такого пользователя")
+				return 0
 
-		if key == db[nick]["pkey"]:
-			bot.reply_to(message,"✅ Ключи совпадают")
+			if key == db[nick]["pkey"]:
+				bot.reply_to(message,"✅ Ключи совпадают")
+			else:
+				bot.reply_to(message,"❌ Ключи не совпадают")
 		else:
-			bot.reply_to(message,"❌ Ключи не совпадают")
-	else:
-		bot.reply_to(message,"/ver ник ключ")
+			bot.reply_to(message,"/ver ник ключ")
+	except:
+		catch_error(message)
+
+@bot.message_handler(commands=['key_res'])
+def key_res(message):
+	try:
+		if is_auth(message):
+			db = read_db()
+
+			key = hash(randint(74287, 5747962))
+			nick = db[str(message.chat.id)]
+			old_key = db[nick]["pkey"]
+
+			db[nick]["pkey"] = key
+			write_db(db)
+
+			bot.reply_to(message,f"""🔑 Ключ успешно сброшен.
+
+Старый ключ: {telebot.formatting.hcode(old_key)}
+Новый ключ: {telebot.formatting.hcode(key)}""",parse_mode="HTML")
+	except:
+		catch_error(message)
+
+# Проверяем совпадение ключей при отправке сообщений
+def key_valid(message, channel):
+	try:
+		db = read_db()
+		our_nick = db[str(message.chat.id)]
+		# Добавляем ключ если его нету в нашей БД
+		if channel not in db[our_nick]["keys"]:
+			db[our_nick]["keys"][channel] = db[channel]["pkey"]
+			write_db(db)
+
+		db = read_db()
+		our_key = db[our_nick]["keys"][channel]
+		dest_key = db[channel]["pkey"]
+
+		if our_key == dest_key:
+			print("Valid: ", channel)
+			return True
+		else:
+			print("Not valid: ", channel)
+			db[our_nick]["keys"][channel] = dest_key
+			write_db(db)
+
+			bot.reply_to(message, f"""⚠️ Публичные ключи не совпадают ⚠️
+Ожидаемый ключ: {telebot.formatting.hcode(our_key)}
+
+Отправка сообщения отклонена.
+Если вы уверены - повторите отправку.
+""", parse_mode="HTML")
+			return False
+	except:
+		catch_error(message)
 
 ####################################
 
@@ -261,20 +322,22 @@ def catch_all_messages(message):
 		if message.content_type == "text" and message.text[:1].lower() == ":":
 			channel = message.text[1:]
 			if channel in db:
+				# Проверяем ключи
+				if not key_valid(message, channel):
+					return 0
+				db = read_db()
+
 				db[nick]["channel"] = channel
-
-				# Обрабатываем публичные ключи
-				if channel in db[nick]["keys"]:
-					pass
-				else:
-					db[nick]["keys"][channel] = db[channel]["pkey"]
-
 				bot.reply_to(message, "Установлен адресат: " + telebot.formatting.hcode(channel), parse_mode="HTML")
 				write_db(db)
 			else:
 				bot.reply_to(message, "Не существует данного пользователя.")
 		elif db[nick]["channel"] != None:
 			channel = db[nick]["channel"]
+			# Проверяем ключи
+			if not key_valid(message, channel):
+				return 0
+			db = read_db()
 
 			if message.chat.id not in db[channel]["blocks"]:
 				try:
@@ -302,7 +365,7 @@ def catch_all_messages(message):
 		catch_error(message)
 
 #### POLLING ####
-mode = 0
+mode = 1
 # Normal - 0, debug - 1
 
 if mode == 0:
