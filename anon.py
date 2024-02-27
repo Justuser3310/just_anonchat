@@ -313,7 +313,7 @@ def me(message):
 
 
 
-@bot.message_handler(func=lambda message: True, content_types=['photo','text'])
+@bot.message_handler(func=lambda message: True, content_types=['photo','text', 'document', 'voice'])
 def catch_all_messages(message):
 	try:
 		db = read_db()
@@ -350,8 +350,18 @@ def catch_all_messages(message):
 						else:
 							caption = ""
 
-						bot.send_photo(db[channel]["id"], img_id, f"{telebot.formatting.hcode(':'+nick)} + avatar" + caption, parse_mode="HTML")
+						bot.send_photo(db[channel]["id"], img_id, f"{telebot.formatting.hcode(':'+nick) + avatar}" + caption, parse_mode="HTML")
 
+					elif "document" in message.json:
+						doc_id = message.json['document']['file_id']
+						if "caption" in message.json:
+							caption = "\n" + message.json['caption']
+						else:
+							caption = ""
+						bot.send_document(db[channel]["id"], doc_id, caption = f"{telebot.formatting.hcode(':'+nick) + avatar}" + caption, parse_mode="HTML")
+					elif "voice" in message.json:
+						voice_id = message.json['voice']['file_id']
+						bot.send_document(db[channel]["id"], voice_id, caption = f"{telebot.formatting.hcode(':'+nick) + avatar}", parse_mode="HTML")
 					else:
 						bot.send_message(db[channel]["id"], f"{telebot.formatting.hcode(':'+nick) + avatar}\n" + message.text, parse_mode="HTML")
 
@@ -365,7 +375,7 @@ def catch_all_messages(message):
 		catch_error(message)
 
 #### POLLING ####
-mode = 1
+mode = 0
 # Normal - 0, debug - 1
 
 if mode == 0:
