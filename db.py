@@ -2,11 +2,13 @@ import os
 import json
 
 if not os.path.exists('db.json'):
-	db = {}
+	db = {"token": "None"}
 	js = json.dumps(db, indent=2)
 	with open("db.json", "w") as outfile:
 		outfile.write(js)
-	print('Created new db.json')
+	print('Создана БД')
+	print('Введите токен db.json')
+	exit()
 
 
 def read_db(file = 'db.json'):
