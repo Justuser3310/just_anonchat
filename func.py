@@ -69,7 +69,7 @@ def key_valid(bot, message, channel):
 		if our_key == dest_key:
 			return True
 		else:
-			use.keys[channel] = dest_key
+			user.keys[channel] = dest_key
 			save(db)
 
 			bot.reply_to(message, f"""⚠️ Публичные ключи не совпадают ⚠️
