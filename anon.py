@@ -251,6 +251,9 @@ def me(message):
 def catch_all_messages(message):
 	try:
 		db = load()
+		# Авторизован ли
+		if is_auth(bot, message):
+			return 0
 		nick = db[str(message.chat.id)]
 		user = db[nick]
 		avatar = ' ' + user.avatar
@@ -269,7 +272,7 @@ def catch_all_messages(message):
 		elif user.channel != None:
 			channel = user.channel
 			db = load()
-			# Проверяем существование пользователя
+			# Проверяем существование адресата
 			if channel not in db:
 				bot.reply_to(message, "Не существует данного пользователя.")
 				return 0
