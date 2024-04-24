@@ -50,111 +50,116 @@ def start(message):
 def reg(message):
 	try:
 		db = load()
-		if len(message.text.split()) == 2:
-			nick = message.text.split()[1]
-			# Проверка ника
-			if not nick_ok(bot, message, nick):
-				return 0
-			if nick in db:
-				bot.reply_to(message, "Данный пользователь уже зарегистрирован.")
-			elif str(message.chat.id) in db:
-				bot.reply_to(message, "Вы уже зарегистрированы.")
-			else:
-				user = user_(message.chat.id, hash(randint(74287, 5747962)))
-				db[nick] = user
-				db[message.chat.id] = nick
-
-				save(db)
-				bot.reply_to(message, "Вы зарегистрировались!\nПриятного использования.")
+		if not ok_args(bot, message, 2, '```\n/reg никнейм```'):
+			return 0
+		nick = message.text.split()[1]
+		# Проверка ника
+		if not nick_ok(bot, message, nick):
+			return 0
+		if nick in db:
+			bot.reply_to(message, "Данный пользователь уже зарегистрирован.")
+		elif str(message.chat.id) in db:
+			bot.reply_to(message, "Вы уже зарегистрированы.")
 		else:
-			bot.reply_to(message, "Вы ввели не 2 аргумента, нужно: /reg ЛюбойНикнейм")
+			user = user_(message.chat.id, hash(randint(74287, 5747962)))
+			db[nick] = user
+			db[message.chat.id] = nick
+
+			save(db)
+			bot.reply_to(message, "Вы зарегистрировались!\nПриятного использования.")
 	except:
 		catch_error(bot, message)
 
 @bot.message_handler(commands=['b'])
 def b(message):
 	try:
-		if is_auth(bot, message):
-			db = load()
-			nick = db[str(message.chat.id)]
-			user = db[nick]
-			block = message.text.split()[1]
+		if not is_auth(bot, message) or not ok_args(bot, message, 2, '```\n/b :ник``` или ```\n/b ник```'):
+			return 0
+		db = load()
+		nick = db[str(message.chat.id)]
+		user = db[nick]
+		block = message.text.split()[1]
 
-			# Block by ":user"
-			if block[0] == ":":
-				block = block[1:]
+		# Block by ":user"
+		if block[0] == ":":
+			block = block[1:]
 
-			if block in db:
-				if db[block].id not in user.blocks:
-					user.blocks.append(db[block].id)
-					save(db)
-				bot.reply_to(message, f"Пользователь {telebot.formatting.hcode(block)} был заблокирован.",parse_mode="HTML")
-			else:
-				bot.reply_to(message, "Данного пользователя не существует.")
+		if block in db:
+			if db[block].id not in user.blocks:
+				user.blocks.append(db[block].id)
+				save(db)
+			bot.reply_to(message, f"Пользователь {telebot.formatting.hcode(block)} был заблокирован.",parse_mode="HTML")
+		else:
+			bot.reply_to(message, "Данного пользователя не существует.")
 	except:
 		catch_error(bot, message)
 
 @bot.message_handler(commands=['u'])
 def u(message):
 	try:
-		if is_auth(bot, message):
-			db = load()
-			nick = db[str(message.chat.id)]
-			user = db[nick]
-			block = message.text.split()[1]
+		if not is_auth(bot, message) or not ok_args(bot, message, 2, '```\n/u :ник``` или ```\n/u ник```'):
+			return 0
+		db = load()
+		nick = db[str(message.chat.id)]
+		user = db[nick]
+		block = message.text.split()[1]
 
-			# Unblock by ":user"
-			if block[0] == ":":
-				block = block[1:]
+		# Unblock by ":user"
+		if block[0] == ":":
+			block = block[1:]
 
-			if db[block].id in user.blocks:
-				user.blocks.remove(db[block].id)
-				save(db)
+		if block in db and db[block].id in user.blocks:
+			user.blocks.remove(db[block].id)
+			save(db)
 			bot.reply_to(message, f"Была снята блокировка с пользователя {telebot.formatting.hcode(block)}",parse_mode="HTML")
+		else:
+			bot.reply_to(message, "Данного пользователя не существует.")
 	except:
 		catch_error(bot, message)
 
 @bot.message_handler(commands=['nick'])
 def nick(message):
 	try:
-		if is_auth(bot, message):
-			db = load()
-			new_nick = message.text.split()[1]
-			# Проверка ника
-			if not nick_ok(message, new_nick):
-				return 0
-			old_nick = db[str(message.chat.id)]
+		if not is_auth(bot, message) or not ok_args(bot, message, 2, '```\n/nick ник```'):
+			return 0
+		db = load()
+		new_nick = message.text.split()[1]
+		# Проверка ника
+		if not nick_ok(bot, message, new_nick):
+			return 0
+		old_nick = db[str(message.chat.id)]
 
-			if new_nick not in db:
-				db[new_nick] = db[old_nick]
-				db[new_nick].avatar = "♿️"
-				db[str(message.chat.id)] = new_nick
-				del db[old_nick]
-				save(db)
-				bot.reply_to(message,f"Вы успешно сменили ник с {telebot.formatting.hcode(old_nick)} на {telebot.formatting.hcode(new_nick)}",parse_mode="HTML")
-				bot.reply_to(message, """Ваша аватарка сброшена до стандартной: ♿️
+		if new_nick not in db:
+			db[new_nick] = db[old_nick]
+			db[new_nick].avatar = "♿️"
+			db[str(message.chat.id)] = new_nick
+			del db[old_nick]
+			save(db)
+			bot.reply_to(message,f"Вы успешно сменили ник с {telebot.formatting.hcode(old_nick)} на {telebot.formatting.hcode(new_nick)}",parse_mode="HTML")
+			bot.reply_to(message, """Ваша аватарка сброшена до стандартной: ♿️
 Также вы можете сбросить публичный ключ: /key_res""")
-			else:
-				bot.reply_to(message,"Данный ник уже занят")
+		else:
+			bot.reply_to(message,"Данный ник уже занят")
 	except:
 		catch_error(bot, message)
 
 @bot.message_handler(commands=['av'])
 def av(message):
 	try:
-		if is_auth(bot, message):
-			db = load()
-			if not len(message.text.split()) > 1:
-				bot.reply_to(message,"Укажите аватарку")
-				return 0
-			new_avatar = message.text.split()[1]
-			if len(new_avatar) > 10:
-				bot.reply_to(message,"Слишком большое количество символов для аватарки")
-			else:
-				nick = db[str(message.chat.id)]
-				db[nick].avatar = new_avatar
-				save(db)
-				bot.reply_to(message,"Новая аватарка успешно установлена")
+		if not is_auth(bot, message) or not ok_args(bot, message, 2, '```\n/av ❄️```'):
+			return 0
+		db = load()
+		if not len(message.text.split()) > 1:
+			bot.reply_to(message,"Укажите аватарку")
+			return 0
+		new_avatar = message.text.split()[1]
+		if len(new_avatar) > 10:
+			bot.reply_to(message,"Слишком большое количество символов для аватарки")
+		else:
+			nick = db[str(message.chat.id)]
+			db[nick].avatar = new_avatar
+			save(db)
+			bot.reply_to(message,"Новая аватарка успешно установлена")
 	except:
 		catch_error(bot, message)
 
@@ -163,54 +168,53 @@ def av(message):
 @bot.message_handler(commands=['key'])
 def key(message):
 	try:
-		if len(message.text.split()) == 2:
-			db = load()
-			nick = message.text.split()[1]
-			if nick[0] == ':':
-				nick = nick[1:]
-			key = db[nick].pkey
-			bot.reply_to(message,f"Ключ пользователя: {telebot.formatting.hcode(key)}", parse_mode="HTML")
-		else:
-			bot.reply_to(message,"/key ник")
+		if not is_auth(bot, message) or not ok_args(bot, message, 2, '```\n/key ник``` или ```\n/key :ник```'):
+			return 0
+		db = load()
+		nick = message.text.split()[1]
+		if nick[0] == ':':
+			nick = nick[1:]
+		key = db[nick].pkey
+		bot.reply_to(message,f"Ключ пользователя: {telebot.formatting.hcode(key)}", parse_mode="HTML")
 	except:
 		catch_error(bot, message)
 
 @bot.message_handler(commands=['ver'])
 def ver(message):
 	try:
-		if len(message.text.split()) == 3:
-			db = load()
-			nick = message.text.split()[1]
-			if nick[0] == ':':
-				nick = nick[1:]
-			key = message.text.split()[2]
-			if not nick in db:
-				bot.reply_to(message,"Не существует такого пользователя")
-				return 0
+		if not is_auth(bot, message) or not ok_args(bot, message, 3, '```\n/ver ник ключ``` или ```\n/ver :ник ключ```'):
+			return 0
+		db = load()
+		nick = message.text.split()[1]
+		if nick[0] == ':':
+			nick = nick[1:]
+		key = message.text.split()[2]
+		if not nick in db:
+			bot.reply_to(message,"Не существует такого пользователя")
+			return 0
 
-			if key == db[nick].pkey:
-				bot.reply_to(message,"✅ Ключи совпадают")
-			else:
-				bot.reply_to(message,"❌ Ключи не совпадают")
+		if key == db[nick].pkey:
+			bot.reply_to(message,"✅ Ключи совпадают")
 		else:
-			bot.reply_to(message,"/ver ник ключ")
+			bot.reply_to(message,"❌ Ключи не совпадают")
 	except:
 		catch_error(bot, message)
 
 @bot.message_handler(commands=['key_res'])
 def key_res(message):
 	try:
-		if is_auth(bot, message):
-			db = load()
+		if not is_auth(bot, message) or not ok_args(bot, message, 1, '```\n/key_res```'):
+			return 0
+		db = load()
 
-			key = hash(randint(74287, 5747962))
-			nick = db[str(message.chat.id)]
-			old_key = db[nick].pkey
+		key = hash(randint(74287, 5747962))
+		nick = db[str(message.chat.id)]
+		old_key = db[nick].pkey
 
-			db[nick].pkey = key
-			save(db)
+		db[nick].pkey = key
+		save(db)
 
-			bot.reply_to(message,f"""🔑 Ключ успешно сброшен.
+		bot.reply_to(message,f"""🔑 Ключ успешно сброшен.
 
 Старый ключ: {telebot.formatting.hcode(old_key)}
 Новый ключ: {telebot.formatting.hcode(key)}""",parse_mode="HTML")
@@ -223,15 +227,16 @@ def key_res(message):
 @bot.message_handler(commands=['me'])
 def me(message):
 	try:
-		if is_auth(bot, message):
-			db = load()
-			nick = db[str(message.chat.id)]
-			user = db[nick]
-			ch = user.channel
-			if not user.channel:
-				ch = "Не задан."
+		if not is_auth(bot, message) or not ok_args(bot, message, 1, '```\n/me```'):
+			return 0
+		db = load()
+		nick = db[str(message.chat.id)]
+		user = db[nick]
+		ch = user.channel
+		if not user.channel:
+			ch = "Не задан."
 
-			bot.reply_to(message, f"""Заданный канал: {telebot.formatting.hcode(ch)}
+		bot.reply_to(message, f"""Заданный канал: {telebot.formatting.hcode(ch)}
 
 Ваш ник: {telebot.formatting.hcode(nick)}
 Ваша аватарка: {telebot.formatting.hcode(user.avatar)}
@@ -263,10 +268,14 @@ def catch_all_messages(message):
 				bot.reply_to(message, "Не существует данного пользователя.")
 		elif user.channel != None:
 			channel = user.channel
+			db = load()
+			# Проверяем существование пользователя
+			if channel not in db:
+				bot.reply_to(message, "Не существует данного пользователя.")
+				return 0
 			# Проверяем ключи
 			if not key_valid(bot, message, channel):
 				return 0
-			db = load()
 
 			if message.chat.id not in db[channel].blocks:
 				try:
@@ -299,7 +308,10 @@ def catch_all_messages(message):
 							caption = ""
 						bot.send_video(db[channel].id, vid_id, caption = f"{telebot.formatting.hcode(':'+nick) + avatar}", parse_mode="HTML")
 					else:
-						bot.send_message(db[channel].id, f"{telebot.formatting.hcode(':'+nick) + avatar}\n" + message.text, parse_mode="HTML")
+						try:
+							bot.send_message(db[channel].id, f"{telebot.formatting.hcode(':'+nick) + avatar}\n" + message.text, parse_mode="HTML")
+						except:
+							catch_error(bot, message, 'spec_symb')
 
 				except:
 					catch_error(bot, message)
