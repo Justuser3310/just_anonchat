@@ -252,7 +252,7 @@ def catch_all_messages(message):
 	try:
 		db = load()
 		# Авторизован ли
-		if is_auth(bot, message):
+		if not is_auth(bot, message):
 			return 0
 		nick = db[str(message.chat.id)]
 		user = db[nick]
